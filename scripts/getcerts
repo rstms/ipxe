@@ -1,0 +1,34 @@
+#!/bin/bash
+
+AWK=$(mktemp)
+
+cleanup() {
+    [ -f "$AWK" ] && rm $AWK
+}
+trap cleanup EXIT
+
+step ca root >certs/root.pem
+
+cat ->$AWK <<"EOF"
+BEGIN {
+    active=0;
+    intermediate=0;
+}
+/^[[:space:]][0-9]+ s:CN = .*Intermediate.*/{
+    intermediate=1;
+}
+/---BEGIN CERTIFICATE---/{
+    active=1;
+    print "" > "certs/intermediate.pem";
+}
+{ 
+    if (active && intermediate) {
+	print $0 >> "certs/intermediate.pem";
+    }
+}
+/---END CERTIFICATE---/{
+    active = 0;
+}
+EOF
+echo "GET /" | openssl s_client -connect netboot.rstms.net:443 -CAfile certs/root.pem -showcerts | awk -F'= *' -f $AWK
+

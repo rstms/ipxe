@@ -1,0 +1,69 @@
+#!ipxe
+
+echo ========================
+echo Reliance Systems Netboot
+echo version 0.0.1
+echo ========================
+
+:start
+ntp pool.ntp.org || echo "ntp failed"
+set cls:hex 1b:5b:4a  # ANSI clear screen sequence - "^[[J"
+set cls ${cls:string}
+
+#console --x 1024 --y 768
+#console --picture http://boot.ipxe.org/ipxe.png
+
+dhcp || echo "dhcp failed"
+
+:main_menu
+clear main_menu_choice
+echo ${cls}
+menu Reliance Systems Netboot Menu
+item --gap Default:
+item mac_autoinstall MAC Address Autoinstall
+item local Boot from local hdd
+item --gap netboot.rstms.net
+item rstms_openbsd75 OpenBSD 7.5
+item rstms_debian12 Debian 12 bookworm
+item --gap netboot.xyz
+item netboot_xyz netboot.xyz menu
+item --gap Tools:
+item shell iPXE shell
+choose --timeout 5000 --default mac_autoinstall main_menu_choice || goto local
+echo ${cls}
+goto ${main_menu_choice}
+goto main_menu
+
+
+:error
+echo Error occured, press any key to return to menu ...
+prompt
+goto main_menu
+
+:mac_autoinstall
+echo ${cls}
+chain --replace https://netboot.rstms.net/ipxe/${net0/mac}.ipxe || error
+
+:rstms_openbsd75
+chain --replace https://netboot.rstms.net/ipxe/rstms-netboot-openbsd.ipxe || error
+goto error
+
+:rstms_debian12
+chain --replace https://netboot.rstms.net/ipxe/rstms-netboot-debian.ipxe || error
+goto error
+
+:netboot_xyz
+chain --replace https://boot.netboot.xyz
+goto error
+
+:local
+echo Booting from local disks ...
+exit 1
+
+:shell
+echo Type "exit" to return to menu.
+shell
+goto main_menu
+
+:menu_exit
+exit
