@@ -2,7 +2,7 @@
 
 :start
 
-set netboot_version 0.1.0
+set netboot_version 0.1.1
 set ntp_server pool.ntp.org
 
 :dhcp_retry
