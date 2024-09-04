@@ -1,0 +1,240 @@
+#!/bin/sh
+
+# make OpenBSD autoinstall netboot image 
+# works with IPXE: sanboot http://server/netbootXX.img
+# customizes installXX.img to create netbootXX.img
+# netbootXX.img autoinstalls as if loaded by pxeboot
+# looks for response file at http://<SERVER_I_CAME_FROM>/<MY_MAC_ADDRESS>-install.conf
+
+set -x
+set -eu
+
+dst_img=$2
+cp $1 $dst_img
+chmod 0600 $dst_img
+
+client_cert=$3
+client_key=$4
+
+
+autoinstall_server=netboot.rstms.net
+#halt_after_install=1
+
+src_image_name=install
+ramdisk_kernel=bsd.rd
+netboot_image_size=8192
+
+version=7.5
+label="$(echo $version | tr -d .)"
+arch=amd64
+base_dir=/var/www/htdocs
+
+
+fail() {
+  echo >&2 "$(basename $0):" "$@"
+  exit 1
+}
+
+workdir=
+
+cleanup() {
+  mount | awk "/\\/dev\\/vnd/{print \$1}" | xargs -r -n 1 umount
+  vnconfig -l | grep -v 'not in use' | awk -F '[ :]*' '{print $1}' | xargs -r -n 1 vnconfig -u
+  [ -n "$workdir" -a -f $workdir ] && rm -rf $workdir
+  ( cd /tmp; rm -rf $(ls | grep '^tmp.') ) 
+}
+
+#trap cleanup EXIT
+
+cleanup
+
+workdir=$(mktemp -d)
+
+get_vnd() {
+  vnconfig -l | awk -F: '/not in use/{print $1}' | tail -1
+}
+
+find_partition() {
+  disklabel $1 | awk -F'[ :]*' '/4.2BSD/{print $2}'
+}
+
+write_netboot() {
+    cat -<<'EOF'
+#!/bin/ksh
+
+FUNCS_ONLY=1
+. /autoinstall
+
+nbif=$(get_ifs)
+echo "Marking $nbif as netboot interface"
+ifconfig $nbif group netboot
+
+ifconfig $nbif inet autoconf
+if ! wait_for_dhcp_info $nbif 30; then
+  echo "DHCP config timeout on interface $nbif"
+else
+  echo "Setting clock from https://netboot.rstms.net/utc..."
+  ftp -S noverifytime https://netboot.rstms.net/utc
+  date -f '%s' $(cat utc)
+  ifconfig $nbif inet -autoconf delete down  2>/dev/null
+  rm /var/db/dhcpleased/$nbif
+fi
+
+echo "Setting autoinstall server: netboot.rstms.net"
+echo "AI_SERVER=netboot.rstms.net" >/netboot.env
+echo "AI_MODE=install" >>/netboot.env
+
+echo "Downloading response file..."
+get_responsefile $nbif
+
+unset nbif
+EOF
+}
+
+image_vnd=$(get_vnd)
+[ -n "$image_vnd" ] || fail cannot allocate source vnd
+
+vnconfig $image_vnd $dst_img
+partition=$(find_partition $image_vnd)
+mkdir $workdir/src
+mount /dev/${image_vnd}${partition} $workdir/src
+
+
+cp $workdir/src/$ramdisk_kernel $workdir/$ramdisk_kernel.Z
+gunzip $workdir/$ramdisk_kernel.Z
+
+rdsetroot -x $workdir/$ramdisk_kernel $workdir/ramdisk.img
+cp $workdir/ramdisk.img $workdir/ramdisk.img.orig
+
+rd_vnd=$(get_vnd)
+[ -n "$rd_vnd" ] || fail cannot allocate ramdisk vnd
+vnconfig $rd_vnd $workdir/ramdisk.img
+
+# store disktab format of original ramdisk.img
+disklabel -t $rd_vnd >$workdir/ramdisk.disktab
+
+ramdisk_partition=$(find_partition $rd_vnd)
+mkdir $workdir/ramdisk
+mount /dev/${rd_vnd}${ramdisk_partition} $workdir/ramdisk
+
+# start changes to ramdisk filesystem
+
+write_netboot >$workdir/ramdisk/netboot
+chmod +x $workdir/ramdisk/netboot
+
+ed $workdir/ramdisk/install.sub <<EOF
+/[[:space:]]*if \[\[ -n \$AI_SERVER && -n \$AI_MODE \]\]/i
+	[ -f /netboot.env ] && . /netboot.env
+.
+w
+q
+EOF
+
+ed $workdir/ramdisk/.profile <<EOF
+/.autoinstall -x/
+i
+	/netboot
+.
+w
+q
+EOF
+
+sed -e '/[[:space:]]*_url="http:..\$AI_SERVER/s/http:/https:/' -i $workdir/ramdisk/install.sub
+
+if [ -v halt_after_install ]; then
+  sed -e 's/exec reboot$/exec halt/' -i $workdir/ramdisk/install.sub
+fi
+
+cp /etc/ssl/keymaster.pem $workdir/ramdisk/etc/ssl/cert.pem
+chmod 0444 $workdir/ramdisk/etc/ssl/cert.pem
+cp $client_cert $workdir/ramdisk/etc/ssl/netboot_client.pem
+chmod 0400 $workdir/ramdisk/etc/ssl/netboot_client.pem
+cp $client_key $workdir/ramdisk/etc/ssl/netboot_client.key
+chmod 0400 $workdir/ramdisk/etc/ssl/netboot_client.key
+
+
+# drop out to shell here to inspect the edit results
+#bash -l
+
+# finished changes to ramdisk dir, now create new ramdisk filesystem
+
+ramdisk_label=$(sed -n '/^[^[:space:]]/s/|.*//p' $workdir/ramdisk.disktab)
+
+sed -e "s/$ramdisk_label/rdnetboot/g" -i $workdir/ramdisk.disktab
+
+# remove rdnetboot entry and trailing spaces from local disktab
+cp /etc/disktab $workdir/disktab.orig
+awk <$workdir/disktab.orig -v echo=1 '
+    /^[^[:space:]]/{ echo=1 }
+    /^rdnetboot\|/{ echo=0 }
+    { if (echo) print }
+  ' \
+  | cat -s \
+  | gtac \
+  | sed '/./,$!d' \
+  | gtac  >$workdir/disktab
+
+# ensure no rdnetboot entry in local disktab
+grep '^rdnetboot|' $workdir/disktab && fail unexpected rdnetboot entry in $(realpath $workdir/disktab)
+
+# add rdrootf entry to local disktab
+echo >>$workdir/disktab
+cat $workdir/ramdisk.disktab >>$workdir/disktab
+
+if diff /etc/disktab $workdir/disktab; then
+  echo /etc/disktab not changed
+else
+  echo "updating /etc/disktab"
+  cp $workdir/disktab /etc/disktab
+fi 
+
+# generate the ramdisk filesystem: see /usr/src/distrib/amd64/ramdisk{A,_cd}/Makefile
+makefs -o disklabel=rdnetboot,minfree=0,density=4096 $workdir/ramdisk.fs $workdir/ramdisk
+
+umount $workdir/ramdisk
+vnconfig -u $rd_vnd
+
+rdsetroot $workdir/$ramdisk_kernel $workdir/ramdisk.fs
+
+# delete original ramdisk kernel and hard link if present
+rm -f $workdir/src/bsd*
+[ -d $workdir/src/$version ] && rm $workdir/src/$version/$arch/$ramdisk_kernel
+
+# compress updated ramdisk kernel into mounted image dir
+gzip -9cn $workdir/$ramdisk_kernel >$workdir/src/$ramdisk_kernel
+
+# delete install package dir
+[ -d $workdir/src/$version ] && rm -rf $workdir/src/$version
+
+# update boot.conf
+ls -al $workdir/src
+mkdir -p $workdir/src/etc
+echo "set image /bsd.rd" >$workdir/src/etc/boot.conf
+
+dd if=/dev/zero of=$workdir/new.img bs=1k count=$netboot_image_size
+new_vnd=$(get_vnd)
+vnconfig $new_vnd $workdir/new.img
+fdisk -b 960 -gAiy $new_vnd
+disklabel -wA $new_vnd
+newfs ${new_vnd}a
+mkdir $workdir/new
+mount /dev/${new_vnd}a $workdir/new
+cp -rp $workdir/src/* $workdir/new
+ln $workdir/new/bsd.rd $workdir/new/bsd
+tar xzf /var/www/htdocs/pub/OpenBSD/7.5/amd64/base75.tgz -C $workdir/new ./usr/mdec/biosboot ./usr/mdec/boot
+installboot -v -r $workdir/new $new_vnd $workdir/new/usr/mdec/biosboot $workdir/new/usr/mdec/boot
+cp $workdir/new/usr/mdec/biosboot /tmp/biosboot
+cp $workdir/new/usr/mdec/boot /tmp/boot
+cp $workdir/new/bsd.rd /tmp/bsd.rd
+umount $workdir/new
+echo "installboot done"
+vnconfig -u $new_vnd
+
+# unmount destination image
+umount $workdir/src
+
+# unlink destination vnd
+vnconfig -u $image_vnd
+
+cp $workdir/new.img $dst_img
+
