@@ -1,8 +1,12 @@
 #!/bin/sh
 
-SRC=$1
-DST=/var/www/netboot/rstms-netboot.iso
 HOST=netboot.rstms.net
+
+deploy() {
+
+SRC=$1
+DST=/var/www/netboot/$(basename $SRC)
+echo "$SRC -> $DST"
 
 ARGS=$(jq -c . <<EOF
 {
@@ -24,3 +28,10 @@ ansible \
     -a "$ARGS" \
     -m copy \
     $HOST
+}
+
+cp src/bin/ipxe.iso /mnt/beaker/h/vmware/iso/ipxe.iso
+deploy src/bin/ipxe.iso
+deploy menus/netboot-openbsd.ipxe
+deploy menus/netboot-debian.ipxe
+deploy menus/ipxe.png
