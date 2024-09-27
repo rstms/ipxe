@@ -32,6 +32,7 @@ upload: netboot localboot
 
 netboot: bin/netboot.iso bin/netboot.img $(NETBOOT_MENUS)
 	./scripts/deploy netboot netboot.rstms.net
+	./scripts/deploy netboot localboot.rstms.net
 
 localboot: bin/localboot.iso bin/localboot.img $(LOCALBOOT_MENUS)
 	./scripts/deploy localboot localboot.rstms.net
@@ -42,7 +43,7 @@ $(CERT_FILES):
 	mkcert netboot_client -d 10y --cert-file certs/netboot_client.pem --key-file certs/netboot_client.key -- --force
 
 menus/netboot.ipxe: menus/template.ipxe
-	sed <$< >$@ 's/NETBOOT_FQDN/netboot.rstms.net/'
+	sed <$< >$@ 's/NETBOOT_NAME/netboot/;s/NETBOOT_DOMAIN/rstms.net/'
 
 menus/netboot-debian.ipxe: menus/template-debian.ipxe
 	sed <$< >$@ 's/NETBOOT_FQDN/netboot.rstms.net/'

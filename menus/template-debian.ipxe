@@ -1,6 +1,6 @@
 #!ipxe
 
-set netboot NETBOOT_FQDN
+set netboot_url https://NETBOOT_NAME.NETBOOT_DOMAIN
 
 set arch amd64
 set debian_version bookworm
@@ -10,6 +10,6 @@ set dir debian/dists/${debian_version}/main/installer-${arch}/current/images/net
 
 #kernel ${netboot}/${dir}/linux ${install_params} ${mirrorcfg}
 imgfree
-kernel https://${netboot}/${dir}/linux auto=true priority=critical net.ifnames=0 biosdevname=0 interface=eth0
-initrd https://${netboot}/${net0/mac}.initrd
+kernel ${netboot_url}/${dir}/linux auto=true priority=critical net.ifnames=0 biosdevname=0 interface=eth0
+initrd ${netboot_url}/${net0/mac}.initrd
 boot

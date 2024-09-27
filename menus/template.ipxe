@@ -2,7 +2,9 @@
 
 :start
 
-set netboot_fqdn NETBOOT_FQDN
+set netboot_name NETBOOT_NAME
+set netboot_domain NETBOOT_DOMAIN
+set netboot_url https://${netboot_name}.${netboot_domain}
 set netboot_version 0.1.1
 set ntp_server pool.ntp.org
 
@@ -27,7 +29,7 @@ set cls:hex 1b:5b:4a  # ANSI clear screen sequence - "^[[J"
 set cls ${cls:string}
 
 #console --x 1024 --y 768
-#console --picture https://${netboot_fqdn}/ipxe.png
+#console --picture ${netboot_url}/ipxe.png
 
 :main_menu
 clear main_menu_choice
@@ -48,15 +50,15 @@ prompt
 goto start
 
 :netboot
-chain --replace https://${netboot_fqdn}/${net0/mac}.ipxe ||
+chain --replace ${netboot_url}/${net0/mac}.ipxe ||
 goto error
 
 :rstms_openbsd75
-chain --replace https://${netboot_fqdn}/netboot-openbsd.ipxe ||
+chain --replace ${netboot_url}/${netboot_name}-openbsd.ipxe ||
 goto error
 
 :rstms_debian12
-chain --replace https://${netboot_fqdn}/netboot-debian.ipxe ||
+chain --replace ${netboot_url}/${netboot_name}-debian.ipxe ||
 goto error
 
 :netboot_xyz
