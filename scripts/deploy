@@ -1,6 +1,7 @@
 #!/bin/sh
 
-HOST=netboot.rstms.net
+NAME=$1
+HOST=$2
 
 deploy() {
 
@@ -12,9 +13,9 @@ ARGS=$(jq -c . <<EOF
 {
     "src": "$SRC",
     "dest": "$DST",
-    "owner": "root",
-    "group": "wheel",
-    "mode": "0644",
+    "owner": "_nbd",
+    "group": "www",
+    "mode": "0640",
     "force": "true"
 }
 EOF
@@ -30,8 +31,10 @@ ansible \
     $HOST
 }
 
-cp src/bin/ipxe.iso /mnt/beaker/h/vmware/iso/ipxe.iso
-deploy src/bin/ipxe.iso
-deploy menus/netboot-openbsd.ipxe
-deploy menus/netboot-debian.ipxe
-deploy menus/ipxe.png
+cp bin/${NAME}.iso /mnt/beaker/h/vmware/iso
+deploy bin/${NAME}.iso
+deploy bin/${NAME}.img
+for MENU in menus/${NAME}.ipxe; do
+    deploy $MENU
+done
+

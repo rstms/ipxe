@@ -2,6 +2,7 @@
 
 :start
 
+set netboot_fqdn NETBOOT_FQDN
 set netboot_version 0.1.1
 set ntp_server pool.ntp.org
 
@@ -25,51 +26,45 @@ echo after NTP ${unixtime}
 set cls:hex 1b:5b:4a  # ANSI clear screen sequence - "^[[J"
 set cls ${cls:string}
 
-console --x 1024 --y 768
-console --picture https://netboot.rstms.net/ipxe.png
+#console --x 1024 --y 768
+#console --picture https://${netboot_fqdn}/ipxe.png
 
 :main_menu
 clear main_menu_choice
-#echo ${cls}
 menu Reliance Systems Netboot v${netboot_version}
-item --gap Default:
-item mac_autoinstall MAC Address Autoinstall
+item netboot MAC Address Autoinstall
 item local Boot from local hdd
-item --gap netboot.rstms.net
 item rstms_openbsd75 OpenBSD 7.5
 item rstms_debian12 Debian 12 bookworm
-item --gap netboot.xyz
-item netboot_xyz netboot.xyz menu
-item --gap Tools:
 item shell iPXE shell
-choose --timeout 5000 --default mac_autoinstall main_menu_choice || goto local
-#echo ${cls}
+choose --timeout 5000 --default netboot main_menu_choice || goto local
 goto ${main_menu_choice}
-goto main_menu
+goto start
 
 
 :error
-echo Error occured, press any key to return to menu ...
+echo Error occured, press any key to restart...
 prompt
-goto main_menu
+goto start
 
-:mac_autoinstall
-chain --replace https://netboot.rstms.net/ipxe/${net0/mac}.ipxe || error
+:netboot
+chain --replace https://${netboot_fqdn}/${net0/mac}.ipxe ||
+goto error
 
 :rstms_openbsd75
-chain --replace https://netboot.rstms.net/ipxe/netboot-openbsd.ipxe || error
+chain --replace https://${netboot_fqdn}/netboot-openbsd.ipxe ||
 goto error
 
 :rstms_debian12
-chain --replace https://netboot.rstms.net/ipxe/netboot-debian.ipxe || error
+chain --replace https://${netboot_fqdn}/netboot-debian.ipxe ||
 goto error
 
 :netboot_xyz
-chain --replace https://boot.netboot.xyz
+chain --replace https://boot.netboot.xyz ||
 goto error
 
 :local
-echo Booting from local disks ...
+echo Booting from local disks...
 exit 1
 
 :shell

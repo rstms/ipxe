@@ -1,6 +1,4 @@
 
-#define BANNER_TIMEOUT		20
-
 #define	NET_PROTO_IPV4		/* IPv4 protocol */
 #undef	NET_PROTO_IPV6		/* IPv6 protocol */
 #undef	NET_PROTO_FCOE		/* Fibre Channel over Ethernet protocol */
@@ -41,10 +39,10 @@
 #undef	IMAGE_NBI		/* NBI image support */
 #define	IMAGE_ELF		/* ELF image support */
 #undef	IMAGE_MULTIBOOT		/* MultiBoot image support */
-#undef	IMAGE_PXE		/* PXE image support */
+#define IMAGE_PXE		/* PXE image support */
 #define	IMAGE_SCRIPT		/* iPXE script image support */
 #define	IMAGE_BZIMAGE		/* Linux bzImage image support */
-#undef	IMAGE_COMBOOT		/* SYSLINUX COMBOOT image support */
+#define IMAGE_COMBOOT		/* SYSLINUX COMBOOT image support */
 #undef	IMAGE_EFI		/* EFI image support */
 #undef	IMAGE_SDI		/* SDI image support */
 #undef	IMAGE_PNM		/* PNM image support */
@@ -69,7 +67,7 @@
 #define MENU_CMD		/* Menu commands */
 #undef	FORM_CMD		/* Form commands */
 #undef	LOGIN_CMD		/* Login command */
-#undef	SYNC_CMD		/* Sync command */
+#define	SYNC_CMD		/* Sync command */
 #define SHELL_CMD		/* Shell command */
 #undef	NSLOOKUP_CMD		/* DNS resolving command */
 #undef	TIME_CMD		/* Time commands */
@@ -93,6 +91,3 @@
 #undef	IMAGE_MEM_CMD		/* Read memory command */
 #define IMAGE_ARCHIVE_CMD	/* Archive image management commands */
 #undef	SHIM_CMD		/* EFI shim command (or dummy command) */
-
-#define CONSOLE_FRAMEBUFFER
-#undef	OCSP_CHECK
