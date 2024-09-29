@@ -6,7 +6,9 @@ HOST=$2
 deploy() {
 
 SRC=$1
-DST=/var/www/netboot/$(basename $SRC)
+DST=$2
+
+DST=/var/www/netboot/$DST
 echo "$SRC -> $DST"
 
 ARGS=$(jq -c . <<EOF
@@ -32,9 +34,9 @@ ansible \
 }
 
 cp bin/${NAME}.iso /mnt/beaker/h/vmware/iso
-deploy bin/${NAME}.iso
-deploy bin/${NAME}.img
-for MENU in menus/${NAME}.ipxe; do
-    deploy $MENU
-done
-
+deploy bin/${NAME}.iso ${NAME}.iso
+deploy bin/${NAME}.img ${NAME}.img
+deploy menus/netboot.png netboot.png
+deploy menus/${NAME}.ipxe ${NAME}.ipxe
+deploy menus/${NAME}-openbsd.ipxe ${NAME}-openbsd.ipxe
+deploy menus/${NAME}-debian.ipxe ${NAME}-debian.ipxe

@@ -42,23 +42,25 @@ $(CERT_FILES):
 	scripts/getcerts
 	mkcert netboot_client -d 10y --cert-file certs/netboot_client.pem --key-file certs/netboot_client.key -- --force
 
-menus/netboot.ipxe: menus/template.ipxe
-	sed <$< >$@ 's/NETBOOT_NAME/netboot/;s/NETBOOT_DOMAIN/rstms.net/'
+mkmenu = sed <$1 >$2 's/NETBOOT_NAME/$3/;s/NETBOOT_DOMAIN/$4/'
 
-menus/netboot-debian.ipxe: menus/template-debian.ipxe
-	sed <$< >$@ 's/NETBOOT_FQDN/netboot.rstms.net/'
+menus/netboot.ipxe: menus/ipxe.template
+	$(call mkmenu,$<,$@,netboot,rstms.net)
 
-menus/netboot-openbsd.ipxe: menus/template-openbsd.ipxe
-	sed <$< >$@ 's/NETBOOT_FQDN/netboot.rstms.net/'
+menus/netboot-debian.ipxe: menus/debian.template
+	$(call mkmenu,$<,$@,netboot,rstms.net)
 
-menus/localboot.ipxe: menus/template.ipxe
-	sed <$< >$@ 's/NETBOOT_FQDN/localboot.rstms.net/'
+menus/netboot-openbsd.ipxe: menus/openbsd.template
+	$(call mkmenu,$<,$@,netboot,rstms.net)
 
-menus/localboot-debian.ipxe: menus/template-debian.ipxe
-	sed <$< >$@ 's/NETBOOT_FQDN/localboot.rstms.net/'
+menus/localboot.ipxe: menus/ipxe.template
+	$(call mkmenu,$<,$@,localboot,rstms.net)
 
-menus/localboot-openbsd.ipxe: menus/template-openbsd.ipxe
-	sed <$< >$@ 's/NETBOOT_FQDN/localboot.rstms.net/'
+menus/localboot-debian.ipxe: menus/debian.template
+	$(call mkmenu,$<,$@,localboot,rstms.net)
+
+menus/localboot-openbsd.ipxe: menus/openbsd.template
+	$(call mkmenu,$<,$@,localboot,rstms.net)
 
 #$(call BUILD,make CERT=$(CERTS) TRUST=$(TRUST) EMBED=../menus/netboot.ipxe bin/ipxe.iso)
 #$(call BUILD,make CERT=$(CERTS) TRUST=$(TRUST) PRIVKEY=../certs/netboot_client.key EMBED=../menus/netboot.ipxe bin/ipxe.iso)
@@ -88,10 +90,9 @@ shell: .$(BUILDER)
 clean:
 	$(call BUILD,make clean) || true
 	rm -f .$(BUILDER)
-	rm -f $(NETBOOT_MENUS) 
-	rm -f $(LOCALBOOT_MENUS) 
 	rm -rf certs
 	rm -rf bin
+	rm -f menus/*.ipxe
 
 sterile: clean
 	docker rmi -f $(BUILDER) || true

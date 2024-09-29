@@ -29,11 +29,11 @@ set cls:hex 1b:5b:4a  # ANSI clear screen sequence - "^[[J"
 set cls ${cls:string}
 
 #console --x 1024 --y 768
-#console --picture ${netboot_url}/ipxe.png
+#console --picture ${netboot_url}/netboot.png
 
 :main_menu
 clear main_menu_choice
-menu Reliance Systems Netboot v${netboot_version}
+menu Reliance Systems Netboot v${netboot_version} [${netboot_url}]
 item netboot MAC Address Autoinstall
 item local Boot from local hdd
 item rstms_openbsd75 OpenBSD 7.5
