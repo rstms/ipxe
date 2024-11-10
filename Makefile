@@ -53,6 +53,9 @@ menus/netboot-debian.ipxe: menus/debian.template
 menus/netboot-openbsd.ipxe: menus/openbsd.template
 	$(call mkmenu,$<,$@,netboot,rstms.net)
 
+menus/netboot-alpine.ipxe: menus/alpine.template
+	$(call mkmenu,$<,$@,netboot,rstms.net)
+
 menus/localboot.ipxe: menus/ipxe.template
 	$(call mkmenu,$<,$@,localboot,rstms.net)
 
@@ -61,6 +64,10 @@ menus/localboot-debian.ipxe: menus/debian.template
 
 menus/localboot-openbsd.ipxe: menus/openbsd.template
 	$(call mkmenu,$<,$@,localboot,rstms.net)
+
+menus/localboot-alpine.ipxe: menus/alpine.template
+	$(call mkmenu,$<,$@,localboot,rstms.net)
+
 
 #$(call BUILD,make CERT=$(CERTS) TRUST=$(TRUST) EMBED=../menus/netboot.ipxe bin/ipxe.iso)
 #$(call BUILD,make CERT=$(CERTS) TRUST=$(TRUST) PRIVKEY=../certs/netboot_client.key EMBED=../menus/netboot.ipxe bin/ipxe.iso)

@@ -1,0 +1,2 @@
+#!ipxe
+sanboot http://NETBOOT_NAME.NETBOOT_DOMAIN/${net0/mac}.iso
