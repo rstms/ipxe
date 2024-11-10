@@ -3,6 +3,8 @@
 NAME=$1
 HOST=$2
 
+OS_LIST="openbsd debian alpine"
+
 deploy() {
 
 SRC=$1
@@ -38,5 +40,6 @@ deploy bin/${NAME}.iso ${NAME}.iso
 deploy bin/${NAME}.img ${NAME}.img
 deploy menus/netboot.png netboot.png
 deploy menus/${NAME}.ipxe ${NAME}.ipxe
-deploy menus/${NAME}-openbsd.ipxe ${NAME}-openbsd.ipxe
-deploy menus/${NAME}-debian.ipxe ${NAME}-debian.ipxe
+for OS in $OS_LIST; do
+    deploy menus/${NAME}-${OS}.ipxe ${NAME}-${OS}.ipxe
+done
